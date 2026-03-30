@@ -14,7 +14,81 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      analyses: {
+        Row: {
+          ai_confidence_level: number | null
+          ai_reasoning: string | null
+          ai_recommendation: string | null
+          ai_risk_score: number | null
+          ai_strengths: Json | null
+          ai_summary: string | null
+          ai_weaknesses: Json | null
+          analysis_period: string | null
+          company_name: string
+          created_at: string
+          current_assets: number
+          current_liabilities: number
+          current_ratio: number
+          debt_ratio: number
+          debt_to_equity_ratio: number
+          equity_ratio: number
+          id: string
+          ticker_symbol: string | null
+          total_assets: number
+          total_debt: number
+          total_equity: number
+          total_liabilities: number
+        }
+        Insert: {
+          ai_confidence_level?: number | null
+          ai_reasoning?: string | null
+          ai_recommendation?: string | null
+          ai_risk_score?: number | null
+          ai_strengths?: Json | null
+          ai_summary?: string | null
+          ai_weaknesses?: Json | null
+          analysis_period?: string | null
+          company_name: string
+          created_at?: string
+          current_assets: number
+          current_liabilities: number
+          current_ratio: number
+          debt_ratio: number
+          debt_to_equity_ratio: number
+          equity_ratio: number
+          id?: string
+          ticker_symbol?: string | null
+          total_assets: number
+          total_debt: number
+          total_equity: number
+          total_liabilities: number
+        }
+        Update: {
+          ai_confidence_level?: number | null
+          ai_reasoning?: string | null
+          ai_recommendation?: string | null
+          ai_risk_score?: number | null
+          ai_strengths?: Json | null
+          ai_summary?: string | null
+          ai_weaknesses?: Json | null
+          analysis_period?: string | null
+          company_name?: string
+          created_at?: string
+          current_assets?: number
+          current_liabilities?: number
+          current_ratio?: number
+          debt_ratio?: number
+          debt_to_equity_ratio?: number
+          equity_ratio?: number
+          id?: string
+          ticker_symbol?: string | null
+          total_assets?: number
+          total_debt?: number
+          total_equity?: number
+          total_liabilities?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
