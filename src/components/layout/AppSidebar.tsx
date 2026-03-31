@@ -103,12 +103,36 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-4">
         {!collapsed && (
-          <div className="rounded-lg bg-sidebar-accent p-3">
-            <p className="text-xs text-sidebar-foreground/60">AI-Powered Analysis</p>
-            <p className="text-xs text-sidebar-foreground/40 mt-1">Make smarter investment decisions</p>
+          <div className="space-y-3">
+            <div className="rounded-lg bg-sidebar-accent p-3">
+              <p className="text-xs text-sidebar-foreground/60">AI-Powered Analysis</p>
+              <p className="text-xs text-sidebar-foreground/40 mt-1">Make smarter investment decisions</p>
+            </div>
+            <LogoutButton />
           </div>
         )}
+        {collapsed && <LogoutButton />}
       </SidebarFooter>
     </Sidebar>
+  );
+}
+
+function LogoutButton() {
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+      onClick={async () => {
+        await signOut();
+        navigate('/auth');
+      }}
+    >
+      <LogOut className="h-4 w-4 mr-2" />
+      Sign Out
+    </Button>
   );
 }

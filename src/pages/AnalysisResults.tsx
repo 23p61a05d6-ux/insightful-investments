@@ -159,8 +159,27 @@ export default function AnalysisResults() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm"><Star className="mr-1 h-4 w-4" /> Watchlist</Button>
-            <Button variant="outline" size="sm"><Download className="mr-1 h-4 w-4" /> PDF</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                try {
+                  await addToWatchlist(currentAnalysis.id);
+                  toast({ title: 'Added to Watchlist' });
+                } catch (e: any) {
+                  toast({ title: e.message || 'Error', variant: 'destructive' });
+                }
+              }}
+            >
+              <Star className="mr-1 h-4 w-4" /> Watchlist
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => generateAnalysisPDF(currentAnalysis)}
+            >
+              <Download className="mr-1 h-4 w-4" /> PDF
+            </Button>
           </div>
         </div>
 

@@ -6,8 +6,11 @@ export async function saveAnalysis(analysis: AnalysisResult): Promise<string> {
   const r = analysis.ratios;
   const ai = analysis.aiAnalysis;
 
+  const { data: { user } } = await supabase.auth.getUser();
+
   const { data, error } = await supabase.from('analyses').insert({
     id: analysis.id,
+    user_id: user?.id,
     company_name: d.companyName,
     ticker_symbol: d.tickerSymbol || null,
     analysis_period: d.analysisPeriod || null,
