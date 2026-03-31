@@ -38,6 +38,7 @@ export type Database = {
           total_debt: number
           total_equity: number
           total_liabilities: number
+          user_id: string | null
         }
         Insert: {
           ai_confidence_level?: number | null
@@ -62,6 +63,7 @@ export type Database = {
           total_debt: number
           total_equity: number
           total_liabilities: number
+          user_id?: string | null
         }
         Update: {
           ai_confidence_level?: number | null
@@ -86,8 +88,62 @@ export type Database = {
           total_debt?: number
           total_equity?: number
           total_liabilities?: number
+          user_id?: string | null
         }
         Relationships: []
+      }
+      profiles: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      watchlist: {
+        Row: {
+          analysis_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          analysis_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          analysis_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "watchlist_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "analyses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
