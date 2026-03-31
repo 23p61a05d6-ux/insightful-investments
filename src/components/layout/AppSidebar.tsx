@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, Home, PlusCircle, History, Star, Settings, TrendingUp, ChevronLeft } from 'lucide-react';
+import { BarChart3, Home, PlusCircle, History, Star, Settings, TrendingUp, ChevronLeft, GitCompare } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
