@@ -11,6 +11,7 @@ import { useAnalysisStore } from '@/store/analysisStore';
 import { calculateRatios } from '@/lib/calculations';
 import { BalanceSheetData } from '@/types/analysis';
 import { useToast } from '@/hooks/use-toast';
+import FileUploadTab from '@/components/FileUploadTab';
 
 const numberFields: { key: keyof BalanceSheetData; label: string }[] = [
   { key: 'totalAssets', label: 'Total Assets' },
