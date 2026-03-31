@@ -89,7 +89,7 @@ export default function Dashboard() {
           ) : (
             <div className="space-y-3">
               {recentAnalyses.map((analysis) => (
-                <Link key={analysis.id} to={`/results/${analysis.id}`}>
+                <Link key={analysis.id} to={`/results/${analysis.id}`} onClick={() => setCurrentAnalysis(analysis)}>
                   <div className="rounded-xl border border-border bg-card p-4 shadow-card hover:border-primary/30 transition-all flex items-center justify-between">
                     <div>
                       <p className="font-medium text-card-foreground">{analysis.balanceSheetData.companyName}</p>
