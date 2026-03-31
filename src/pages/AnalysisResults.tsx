@@ -17,6 +17,8 @@ import { getRatioInfos, getHealthColor, getHealthBg, getRecommendationColor } fr
 import { RatioHealth, AIAnalysis } from '@/types/analysis';
 
 import { callGeminiAnalysis, getFallbackRecommendation } from '@/lib/api';
+import { addToWatchlist } from '@/lib/watchlist';
+import { generateAnalysisPDF } from '@/lib/pdf';
 import { useToast } from '@/hooks/use-toast';
 
 const CHART_COLORS = {
