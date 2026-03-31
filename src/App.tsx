@@ -3,7 +3,9 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
+import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
 import NewAnalysis from "./pages/NewAnalysis";
 import AnalysisResults from "./pages/AnalysisResults";
@@ -22,13 +24,14 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<LandingPage />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/new-analysis" element={<NewAnalysis />} />
-          <Route path="/results" element={<AnalysisResults />} />
-          <Route path="/results/:id" element={<AnalysisResults />} />
-          <Route path="/history" element={<HistoryPage />} />
-          <Route path="/comparison" element={<ComparisonPage />} />
-          <Route path="/watchlist" element={<WatchlistPage />} />
+          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/new-analysis" element={<ProtectedRoute><NewAnalysis /></ProtectedRoute>} />
+          <Route path="/results" element={<ProtectedRoute><AnalysisResults /></ProtectedRoute>} />
+          <Route path="/results/:id" element={<ProtectedRoute><AnalysisResults /></ProtectedRoute>} />
+          <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
+          <Route path="/comparison" element={<ProtectedRoute><ComparisonPage /></ProtectedRoute>} />
+          <Route path="/watchlist" element={<ProtectedRoute><WatchlistPage /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
