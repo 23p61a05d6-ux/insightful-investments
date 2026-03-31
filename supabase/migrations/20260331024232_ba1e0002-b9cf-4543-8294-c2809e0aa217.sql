@@ -1,0 +1,75 @@
+
+-- Profiles table for auth
+CREATE TABLE public.profiles (
+  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email text,
+  full_name text,
+  company text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read own profile" ON public.profiles
+  FOR SELECT TO authenticated USING (auth.uid() = id);
+
+CREATE POLICY "Users can update own profile" ON public.profiles
+  FOR UPDATE TO authenticated USING (auth.uid() = id);
+
+CREATE POLICY "Users can insert own profile" ON public.profiles
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
+
+-- Auto-create profile on signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name)
+  VALUES (NEW.id, NEW.email, NEW.raw_user_meta_data->>'full_name');
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Add user_id to analyses
+ALTER TABLE public.analyses ADD COLUMN user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- Watchlist table
+CREATE TABLE public.watchlist (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  analysis_id uuid NOT NULL REFERENCES public.analyses(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(user_id, analysis_id)
+);
+
+ALTER TABLE public.watchlist ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read own watchlist" ON public.watchlist
+  FOR SELECT TO authenticated USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own watchlist" ON public.watchlist
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own watchlist" ON public.watchlist
+  FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+-- Update analyses RLS to be user-scoped
+DROP POLICY IF EXISTS "Anyone can insert analyses" ON public.analyses;
+DROP POLICY IF EXISTS "Anyone can read analyses" ON public.analyses;
+DROP POLICY IF EXISTS "Anyone can update analyses" ON public.analyses;
+
+CREATE POLICY "Users can insert own analyses" ON public.analyses
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can read own analyses" ON public.analyses
+  FOR SELECT TO authenticated USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own analyses" ON public.analyses
+  FOR UPDATE TO authenticated USING (auth.uid() = user_id);
