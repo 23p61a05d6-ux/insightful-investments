@@ -15,8 +15,12 @@ const quickActions = [
 ];
 
 export default function Dashboard() {
-  const { analyses } = useAnalysisStore();
+  const { analyses, loadAnalyses } = useAnalysisStore();
   const recentAnalyses = analyses.slice(0, 5);
+
+  useEffect(() => {
+    loadAnalyses();
+  }, [loadAnalyses]);
 
   return (
     <AppLayout>
