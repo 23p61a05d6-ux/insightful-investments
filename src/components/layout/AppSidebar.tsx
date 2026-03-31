@@ -23,7 +23,7 @@ const mainItems = [
 ];
 
 const toolItems = [
-  { title: 'Compare', url: '/compare', icon: BarChart3 },
+  { title: 'Compare', url: '/comparison', icon: GitCompare },
   { title: 'Settings', url: '/settings', icon: Settings },
 ];
 
