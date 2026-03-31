@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PlusCircle, Upload, History, Star, TrendingUp, BarChart3 } from 'lucide-react';
 import { motion } from 'framer-motion';
