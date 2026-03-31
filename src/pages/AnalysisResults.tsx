@@ -113,14 +113,28 @@ export default function AnalysisResults() {
     { name: 'Other Liabilities', value: Math.max(0, currentAnalysis.balanceSheetData.totalLiabilities - currentAnalysis.balanceSheetData.totalDebt) },
   ];
 
-  const generateAI = () => {
+  const generateAI = async () => {
     setIsAnalyzing(true);
     setShowAI(true);
-    setTimeout(() => {
-      const ai = mockAIAnalysis(currentAnalysis.balanceSheetData.companyName, ratioInfos);
-      updateCurrentAI(ai);
+    try {
+      const ai = await callGeminiAnalysis(
+        currentAnalysis.balanceSheetData.companyName,
+        currentAnalysis.ratios
+      );
+      await updateCurrentAI(ai);
+      toast({ title: 'AI Analysis Complete', description: `Recommendation: ${ai.recommendation}` });
+    } catch (e: any) {
+      console.error('AI analysis failed, using fallback:', e);
+      const fallback = getFallbackRecommendation(currentAnalysis.ratios);
+      await updateCurrentAI(fallback);
+      toast({
+        title: 'AI Unavailable — Using Rule-Based Analysis',
+        description: e?.message || 'Gemini API failed. Showing fallback recommendation.',
+        variant: 'destructive',
+      });
+    } finally {
       setIsAnalyzing(false);
-    }, 2500);
+    }
   };
 
   const ai = currentAnalysis.aiAnalysis;
