@@ -11,6 +11,7 @@ import { useAnalysisStore } from '@/store/analysisStore';
 import { calculateRatios } from '@/lib/calculations';
 import { BalanceSheetData } from '@/types/analysis';
 import { useToast } from '@/hooks/use-toast';
+import FileUploadTab from '@/components/FileUploadTab';
 
 const numberFields: { key: keyof BalanceSheetData; label: string }[] = [
   { key: 'totalAssets', label: 'Total Assets' },
@@ -175,15 +176,39 @@ export default function NewAnalysis() {
           </TabsContent>
 
           <TabsContent value="upload" className="mt-6">
-            <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center shadow-card">
-              <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-lg font-medium text-card-foreground mb-2">Drag & drop your file here</p>
-              <p className="text-sm text-muted-foreground mb-4">Supports .xlsx, .xls, .csv (max 5MB)</p>
-              <Button variant="outline">Browse Files</Button>
-              <p className="text-xs text-muted-foreground mt-4">
-                <a href="#" className="text-primary underline">Download sample template</a>
-              </p>
-            </div>
+            <FileUploadTab onDataParsed={(rows) => {
+              // Process first row immediately, or batch
+              if (rows.length === 1) {
+                const data = rows[0];
+                const ratios = calculateRatios(data);
+                const analysis = {
+                  id: crypto.randomUUID(),
+                  balanceSheetData: data,
+                  ratios,
+                  createdAt: new Date().toISOString(),
+                };
+                setCurrentAnalysis(analysis);
+                addAnalysis(analysis);
+                navigate('/results');
+              } else if (rows.length > 1) {
+                // Batch: save all, navigate to last
+                for (const data of rows) {
+                  const ratios = calculateRatios(data);
+                  const analysis = {
+                    id: crypto.randomUUID(),
+                    balanceSheetData: data,
+                    ratios,
+                    createdAt: new Date().toISOString(),
+                  };
+                  addAnalysis(analysis);
+                  if (data === rows[rows.length - 1]) {
+                    setCurrentAnalysis(analysis);
+                  }
+                }
+                toast({ title: 'Batch Import', description: `${rows.length} analyses created. View them in History.` });
+                navigate('/history');
+              }
+            }} />
           </TabsContent>
 
           <TabsContent value="ticker" className="mt-6">

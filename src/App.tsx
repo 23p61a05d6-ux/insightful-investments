@@ -9,6 +9,7 @@ import NewAnalysis from "./pages/NewAnalysis";
 import AnalysisResults from "./pages/AnalysisResults";
 import HistoryPage from "./pages/HistoryPage";
 import WatchlistPage from "./pages/WatchlistPage";
+import ComparisonPage from "./pages/ComparisonPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/results" element={<AnalysisResults />} />
           <Route path="/results/:id" element={<AnalysisResults />} />
           <Route path="/history" element={<HistoryPage />} />
+          <Route path="/comparison" element={<ComparisonPage />} />
           <Route path="/watchlist" element={<WatchlistPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
