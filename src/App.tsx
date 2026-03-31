@@ -9,6 +9,7 @@ import NewAnalysis from "./pages/NewAnalysis";
 import AnalysisResults from "./pages/AnalysisResults";
 import HistoryPage from "./pages/HistoryPage";
 import WatchlistPage from "./pages/WatchlistPage";
+import ComparisonPage from "./pages/ComparisonPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
