@@ -15,7 +15,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { useAnalysisStore } from '@/store/analysisStore';
 import { getRatioInfos, getHealthColor, getHealthBg, getRecommendationColor } from '@/lib/calculations';
 import { RatioHealth, AIAnalysis } from '@/types/analysis';
-import { useParams } from 'react-router-dom';
+
 import { callGeminiAnalysis, getFallbackRecommendation } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
