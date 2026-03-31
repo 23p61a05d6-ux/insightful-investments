@@ -63,43 +63,30 @@ function RiskGauge({ score }: { score: number }) {
   );
 }
 
-function mockAIAnalysis(companyName: string, ratios: ReturnType<typeof getRatioInfos>): AIAnalysis {
-  const goodCount = ratios.filter(r => r.health === 'good').length;
-  const poorCount = ratios.filter(r => r.health === 'poor').length;
-
-  let recommendation: AIAnalysis['recommendation'] = 'HOLD';
-  let riskScore = 50;
-  if (goodCount >= 3) { recommendation = 'STRONG BUY'; riskScore = 15 + Math.random() * 15; }
-  else if (goodCount >= 2) { recommendation = 'BUY'; riskScore = 25 + Math.random() * 15; }
-  else if (poorCount >= 3) { recommendation = 'STRONG SELL'; riskScore = 75 + Math.random() * 20; }
-  else if (poorCount >= 2) { recommendation = 'SELL'; riskScore = 60 + Math.random() * 15; }
-
-  return {
-    recommendation,
-    riskScore: Math.round(riskScore),
-    confidenceLevel: 70 + Math.round(Math.random() * 25),
-    strengths: [
-      goodCount >= 2 ? 'Strong debt management with low leverage ratios' : 'Reasonable current ratio indicates short-term stability',
-      'Balanced capital structure showing financial discipline',
-      'Consistent financial metrics within industry norms',
-    ],
-    weaknesses: [
-      poorCount >= 1 ? 'Elevated debt levels may constrain growth flexibility' : 'Moderate risk exposure in current market conditions',
-      'Further diversification could improve risk profile',
-    ],
-    summary: `${companyName} shows ${goodCount >= 3 ? 'strong' : goodCount >= 2 ? 'solid' : 'mixed'} financial health based on balance sheet analysis. The company ${goodCount >= 2 ? 'maintains healthy leverage and liquidity ratios' : 'faces some challenges in its financial structure'}, warranting a ${recommendation} recommendation.`,
-    reasoning: `Based on comprehensive analysis of ${companyName}'s balance sheet data, the financial ratios indicate ${goodCount >= 3 ? 'excellent' : goodCount >= 2 ? 'good' : 'concerning'} financial health. The debt ratio and current ratio are key factors in this assessment, alongside the debt-to-equity and equity ratios which provide additional perspective on capital structure.`,
-  };
-}
-
 export default function AnalysisResults() {
   const navigate = useNavigate();
-  const { currentAnalysis, setCurrentAnalysis, updateCurrentAI, isAnalyzing, setIsAnalyzing } = useAnalysisStore();
+  const { currentAnalysis, setCurrentAnalysis, updateCurrentAI, isAnalyzing, setIsAnalyzing, analyses, loadAnalyses } = useAnalysisStore();
   const [showAI, setShowAI] = useState(false);
+  const { toast } = useToast();
+  const { id } = useParams();
 
   useEffect(() => {
-    if (!currentAnalysis) navigate('/new-analysis');
-  }, [currentAnalysis, navigate]);
+    if (!currentAnalysis && id) {
+      // Try to find in store or load from DB
+      const found = analyses.find(a => a.id === id);
+      if (found) {
+        setCurrentAnalysis(found);
+      } else {
+        loadAnalyses().then(() => {
+          const loaded = useAnalysisStore.getState().analyses.find(a => a.id === id);
+          if (loaded) setCurrentAnalysis(loaded);
+          else navigate('/new-analysis');
+        });
+      }
+    } else if (!currentAnalysis && !id) {
+      navigate('/new-analysis');
+    }
+  }, [currentAnalysis, id, navigate, analyses, setCurrentAnalysis, loadAnalyses]);
 
   if (!currentAnalysis) return null;
 
