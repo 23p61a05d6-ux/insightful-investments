@@ -1,13 +1,39 @@
+/**
+ * API Layer — Data Persistence & AI Integration
+ * ===============================================
+ * 
+ * This file handles all communication between the frontend and the backend (Supabase).
+ * 
+ * DATA STORAGE:
+ * - All analysis data is stored in the `analyses` table in Supabase PostgreSQL
+ * - The Supabase JS client (`@supabase/supabase-js`) handles authentication headers automatically
+ * - Row Level Security (RLS) ensures each user can only access their own data
+ * 
+ * FUNCTIONS:
+ * - saveAnalysis()       → INSERT into `analyses` table (called after calculating ratios)
+ * - updateAnalysisAI()   → UPDATE `analyses` table with AI results (after Gemini responds)
+ * - fetchAnalyses()      → SELECT from `analyses` table (loads user's history)
+ * - callGeminiAnalysis() → Invokes the `analyze` Edge Function which calls Google Gemini API
+ * - getFallbackRecommendation() → Rule-based fallback if Gemini API fails
+ */
+
 import { supabase } from '@/integrations/supabase/client';
 import { AnalysisResult, AIAnalysis, BalanceSheetData, CalculatedRatios } from '@/types/analysis';
 
+/**
+ * Save a new analysis to the database.
+ * Called from analysisStore.addAnalysis() after ratio calculation.
+ * The user_id is automatically set from the authenticated session.
+ */
 export async function saveAnalysis(analysis: AnalysisResult): Promise<string> {
   const d = analysis.balanceSheetData;
   const r = analysis.ratios;
   const ai = analysis.aiAnalysis;
 
+  // Get the currently authenticated user
   const { data: { user } } = await supabase.auth.getUser();
 
+  // Insert into the `analyses` table in Supabase PostgreSQL
   const { data, error } = await supabase.from('analyses').insert({
     id: analysis.id,
     user_id: user?.id,
@@ -37,6 +63,10 @@ export async function saveAnalysis(analysis: AnalysisResult): Promise<string> {
   return data?.id || analysis.id;
 }
 
+/**
+ * Update an existing analysis with AI-generated results.
+ * Called after Gemini API returns a recommendation.
+ */
 export async function updateAnalysisAI(id: string, ai: AIAnalysis): Promise<void> {
   const { error } = await supabase.from('analyses').update({
     ai_recommendation: ai.recommendation,
@@ -51,6 +81,11 @@ export async function updateAnalysisAI(id: string, ai: AIAnalysis): Promise<void
   if (error) throw error;
 }
 
+/**
+ * Fetch all analyses for the current user from the database.
+ * RLS policies automatically filter by user_id = auth.uid().
+ * Used by HistoryPage, Dashboard, ComparisonPage, and WatchlistPage.
+ */
 export async function fetchAnalyses(): Promise<AnalysisResult[]> {
   const { data, error } = await supabase
     .from('analyses')
@@ -59,6 +94,7 @@ export async function fetchAnalyses(): Promise<AnalysisResult[]> {
 
   if (error) throw error;
 
+  // Map database rows to the frontend AnalysisResult type
   return (data || []).map((row: any) => ({
     id: row.id,
     balanceSheetData: {
@@ -91,6 +127,16 @@ export async function fetchAnalyses(): Promise<AnalysisResult[]> {
   }));
 }
 
+/**
+ * Call the Gemini AI analysis via the `analyze` Supabase Edge Function.
+ * 
+ * FLOW:
+ * 1. Client calls supabase.functions.invoke('analyze', { body })
+ * 2. Edge Function reads GEMINI_API_KEY from server-side secrets
+ * 3. Edge Function sends a structured prompt to Google Gemini API
+ * 4. Gemini returns JSON with recommendation, risk score, etc.
+ * 5. Edge Function parses and returns the result to the client
+ */
 export async function callGeminiAnalysis(
   companyName: string,
   ratios: CalculatedRatios
@@ -119,7 +165,11 @@ export async function callGeminiAnalysis(
   };
 }
 
-// Fallback rule-based recommendation
+/**
+ * Fallback rule-based recommendation when Gemini API is unavailable.
+ * Uses simple threshold logic on the 4 financial ratios.
+ * This ensures the app still provides value even without AI.
+ */
 export function getFallbackRecommendation(ratios: CalculatedRatios): AIAnalysis {
   const { currentRatio, debtToEquityRatio, debtRatio, equityRatio } = ratios;
 

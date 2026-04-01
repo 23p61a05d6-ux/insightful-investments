@@ -1,3 +1,23 @@
+/**
+ * FileUploadTab Component
+ * -----------------------
+ * Handles Excel/CSV file uploads for financial analysis.
+ * 
+ * VALIDATION RULES:
+ * - One file = One company only
+ * - Multiple rows allowed for same company (e.g., different months/quarters)
+ * - All rows must have the SAME companyName
+ * - Required columns: companyName, totalAssets, totalLiabilities, currentAssets,
+ *   currentLiabilities, totalEquity, totalDebt
+ * 
+ * DATA FLOW:
+ * - File is parsed client-side using the `xlsx` library
+ * - Column headers are normalized via alias mapping (handles variations like
+ *   "Total Assets", "total_assets", "totalAssets")
+ * - Parsed rows are passed to parent via `onDataParsed` callback
+ * - Parent (NewAnalysis) then calculates ratios and saves to database
+ */
+
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, FileSpreadsheet, AlertCircle, Download, CheckCircle, X } from 'lucide-react';
@@ -6,7 +26,9 @@ import { Button } from '@/components/ui/button';
 import { BalanceSheetData } from '@/types/analysis';
 import { useToast } from '@/hooks/use-toast';
 
-const REQUIRED_COLUMNS = ['totalAssets', 'totalLiabilities', 'currentAssets', 'currentLiabilities', 'totalEquity', 'totalDebt'];
+const REQUIRED_COLUMNS = ['companyName', 'totalAssets', 'totalLiabilities', 'currentAssets', 'currentLiabilities', 'totalEquity', 'totalDebt'];
+const NUMERIC_COLUMNS = ['totalAssets', 'totalLiabilities', 'currentAssets', 'currentLiabilities', 'totalEquity', 'totalDebt'];
+
 const COLUMN_ALIASES: Record<string, string> = {
   'total assets': 'totalAssets', 'total_assets': 'totalAssets', 'totalassets': 'totalAssets',
   'total liabilities': 'totalLiabilities', 'total_liabilities': 'totalLiabilities', 'totalliabilities': 'totalLiabilities',
@@ -63,20 +85,32 @@ export default function FileUploadTab({ onDataParsed }: FileUploadTabProps) {
         const mapping: Record<string, string> = {};
         for (const col of rawCols) {
           const normalized = normalizeColumn(col);
-          if (REQUIRED_COLUMNS.includes(normalized) || ['companyName', 'tickerSymbol', 'analysisPeriod'].includes(normalized)) {
+          if (REQUIRED_COLUMNS.includes(normalized) || ['tickerSymbol', 'analysisPeriod'].includes(normalized)) {
             mapping[col] = normalized;
           }
         }
 
+        // Check all required columns are present
         const missingRequired = REQUIRED_COLUMNS.filter(rc => !Object.values(mapping).includes(rc));
         if (missingRequired.length > 0) {
           setFileError(`Missing required columns: ${missingRequired.join(', ')}. Found: ${rawCols.join(', ')}`);
           return;
         }
 
+        // CRITICAL VALIDATION: All rows must have the SAME companyName
+        const companyNameCol = Object.entries(mapping).find(([, v]) => v === 'companyName')?.[0];
+        if (companyNameCol) {
+          const companyNames = [...new Set(jsonData.map(row => String(row[companyNameCol] || '').trim().toLowerCase()))];
+          if (companyNames.length > 1) {
+            setFileError('File must contain data for only one company. Multiple company names detected: ' +
+              [...new Set(jsonData.map(row => String(row[companyNameCol] || '').trim()))].join(', '));
+            return;
+          }
+        }
+
         setMappedColumns(mapping);
-        setPreview(jsonData.slice(0, 20)); // Preview max 20 rows
-        toast({ title: 'File parsed successfully', description: `${jsonData.length} row(s) found` });
+        setPreview(jsonData.slice(0, 20));
+        toast({ title: 'File parsed successfully', description: `${jsonData.length} row(s) found for single company` });
       } catch {
         setFileError('Failed to parse file. Make sure it\'s a valid Excel or CSV file.');
       }
@@ -115,18 +149,30 @@ export default function FileUploadTab({ onDataParsed }: FileUploadTabProps) {
       };
     });
 
+    // Validate numeric values
     const invalid = rows.filter(r => !r.totalAssets || !r.totalEquity || !r.currentLiabilities);
     if (invalid.length) {
       toast({ title: 'Warning', description: `${invalid.length} row(s) have zero/missing required values`, variant: 'destructive' });
     }
 
-    onDataParsed(rows.filter(r => r.totalAssets > 0 && r.totalEquity > 0 && r.currentLiabilities > 0));
+    const validRows = rows.filter(r => r.totalAssets > 0 && r.totalEquity > 0 && r.currentLiabilities > 0);
+    if (validRows.length === 0) {
+      toast({ title: 'Error', description: 'No valid rows found after validation', variant: 'destructive' });
+      return;
+    }
+
+    onDataParsed(validRows);
   };
 
+  /** Downloads a CSV template showing the correct single-company format */
   const downloadTemplate = () => {
-    const headers = ['companyName', 'tickerSymbol', 'analysisPeriod', ...REQUIRED_COLUMNS];
-    const sampleRow = ['Apple Inc.', 'AAPL', 'Q4 2025', '352583', '287912', '143566', '105392', '64671', '112043'];
-    const csv = [headers.join(','), sampleRow.join(',')].join('\n');
+    const headers = ['companyName', 'tickerSymbol', 'analysisPeriod', ...NUMERIC_COLUMNS];
+    const sampleRows = [
+      ['Apple Inc.', 'AAPL', 'Q1 2025', '352583', '287912', '143566', '105392', '64671', '112043'],
+      ['Apple Inc.', 'AAPL', 'Q2 2025', '365000', '290000', '150000', '108000', '75000', '115000'],
+      ['Apple Inc.', 'AAPL', 'Q3 2025', '370000', '295000', '155000', '110000', '75000', '118000'],
+    ];
+    const csv = [headers.join(','), ...sampleRows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -138,6 +184,16 @@ export default function FileUploadTab({ onDataParsed }: FileUploadTabProps) {
 
   return (
     <div className="space-y-6">
+      {/* Format instructions */}
+      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+        <p className="text-sm font-medium text-foreground mb-2">📋 File Format Rules</p>
+        <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+          <li>One file = <strong>one company only</strong></li>
+          <li>Multiple rows allowed for different months/quarters (trend analysis)</li>
+          <li>Required columns: companyName, totalAssets, totalLiabilities, currentAssets, currentLiabilities, totalEquity, totalDebt</li>
+        </ul>
+      </div>
+
       {/* Dropzone */}
       <div
         {...getRootProps()}
@@ -156,9 +212,9 @@ export default function FileUploadTab({ onDataParsed }: FileUploadTabProps) {
 
       {/* Download template */}
       <div className="text-center">
-        <button onClick={downloadTemplate} className="text-sm text-primary underline hover:text-primary/80 inline-flex items-center gap-1">
-          <Download className="h-3 w-3" /> Download sample template
-        </button>
+        <Button variant="outline" size="sm" onClick={downloadTemplate} className="gap-2">
+          <Download className="h-4 w-4" /> Download Correct Sample Template
+        </Button>
       </div>
 
       {/* Error */}
@@ -179,7 +235,7 @@ export default function FileUploadTab({ onDataParsed }: FileUploadTabProps) {
           <div className="flex-1">
             <p className="text-sm font-medium text-foreground">{fileName}</p>
             <p className="text-xs text-muted-foreground">
-              {preview ? `${preview.length} row(s) · Columns mapped: ${Object.keys(mappedColumns).length}` : 'Processing...'}
+              {preview ? `${preview.length} row(s) · Single company · Columns mapped: ${Object.keys(mappedColumns).length}` : 'Processing...'}
             </p>
           </div>
           <button onClick={() => { setPreview(null); setFileName(null); setFileError(null); }}>

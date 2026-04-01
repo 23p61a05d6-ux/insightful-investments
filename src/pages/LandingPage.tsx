@@ -40,7 +40,7 @@ export default function LandingPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg gradient-electric">
               <TrendingUp className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="font-bold text-lg text-foreground">Finance Analyser</span>
+            <span className="font-bold text-lg text-foreground">AI Investment Analyzer</span>
           </Link>
           <Link to="/dashboard">
             <Button variant="default" size="sm">
@@ -170,7 +170,7 @@ export default function LandingPage() {
       <footer className="border-t border-border py-8 bg-card">
         <div className="container mx-auto px-6 text-center">
           <p className="text-sm text-muted-foreground">
-            Finance Analyser — AI-powered investment analysis for everyone.
+            AI Investment Analyzer — Smart financial analysis for everyone.
             <br />
             <span className="text-xs">For educational purposes only. Consult a financial advisor before making investment decisions.</span>
           </p>
