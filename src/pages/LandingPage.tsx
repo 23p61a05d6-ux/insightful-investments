@@ -40,7 +40,7 @@ export default function LandingPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg gradient-electric">
               <TrendingUp className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="font-bold text-lg text-foreground">Finance Analyser</span>
+            <span className="font-bold text-lg text-foreground">AI Investment Analyzer</span>
           </Link>
           <Link to="/dashboard">
             <Button variant="default" size="sm">
