@@ -7,14 +7,16 @@ import {
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
   PieChart, Pie, Cell,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAnalysisStore } from '@/store/analysisStore';
-import { getRatioInfos, getHealthColor, getHealthBg, getRecommendationColor } from '@/lib/calculations';
-import { RatioHealth, AIAnalysis } from '@/types/analysis';
+import { getRatioInfos, getHealthColor, getHealthBg } from '@/lib/calculations';
+import { AIAnalysis } from '@/types/analysis';
+import { RecommendationBadge } from '@/components/RecommendationBadge';
+import { TrendAnalysis } from '@/components/TrendAnalysis';
 
 import { callGeminiAnalysis, getFallbackRecommendation } from '@/lib/api';
 import { addToWatchlist } from '@/lib/watchlist';
@@ -35,9 +37,7 @@ function RiskGauge({ score }: { score: number }) {
   return (
     <div className="flex flex-col items-center">
       <svg width="200" height="110" viewBox="0 0 200 110">
-        {/* Background arc */}
         <path d="M 10 100 A 90 90 0 0 1 190 100" fill="none" stroke="hsl(var(--border))" strokeWidth="12" strokeLinecap="round" />
-        {/* Score arc */}
         <path
           d="M 10 100 A 90 90 0 0 1 190 100"
           fill="none"
@@ -47,7 +47,6 @@ function RiskGauge({ score }: { score: number }) {
           strokeDasharray={`${(angle / 180) * 283} 283`}
           style={{ transition: 'stroke-dasharray 1s ease' }}
         />
-        {/* Needle */}
         <line
           x1="100" y1="100"
           x2={100 + 70 * Math.cos((Math.PI * (180 - angle)) / 180)}
@@ -77,7 +76,6 @@ export default function AnalysisResults() {
 
   useEffect(() => {
     if (!currentAnalysis && id) {
-      // Try to find in store or load from DB
       const found = analyses.find(a => a.id === id);
       if (found) {
         setCurrentAnalysis(found);
@@ -93,6 +91,11 @@ export default function AnalysisResults() {
     }
   }, [currentAnalysis, id, navigate, analyses, setCurrentAnalysis, loadAnalyses]);
 
+  // Load all analyses for trend
+  useEffect(() => {
+    if (analyses.length === 0) loadAnalyses();
+  }, [analyses.length, loadAnalyses]);
+
   if (!currentAnalysis) return null;
 
   const ratioInfos = getRatioInfos(currentAnalysis.ratios);
@@ -101,12 +104,6 @@ export default function AnalysisResults() {
     name: r.name,
     value: r.value,
     fill: CHART_COLORS[r.health],
-  }));
-
-  const radarData = ratioInfos.map((r) => ({
-    subject: r.name,
-    value: Math.min(r.value, 100),
-    fullMark: 100,
   }));
 
   const pieData = [
@@ -145,7 +142,7 @@ export default function AnalysisResults() {
     <AppLayout>
       <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate('/new-analysis')}>
               <ArrowLeft className="h-5 w-5" />
@@ -157,6 +154,7 @@ export default function AnalysisResults() {
                 {currentAnalysis.balanceSheetData.analysisPeriod || new Date(currentAnalysis.createdAt).toLocaleDateString()}
               </p>
             </div>
+            {ai && <RecommendationBadge recommendation={ai.recommendation} size="lg" />}
           </div>
           <div className="flex gap-2">
             <Button
@@ -191,7 +189,7 @@ export default function AnalysisResults() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
-              className={`rounded-xl border p-5 ${getHealthBg(ratio.health)}`}
+              className={`rounded-xl border p-5 transition-shadow hover:shadow-md ${getHealthBg(ratio.health)}`}
             >
               <p className="text-xs font-medium text-muted-foreground mb-1">{ratio.name}</p>
               <p className={`text-2xl font-bold ${getHealthColor(ratio.health)}`}>{ratio.formatted}</p>
@@ -202,7 +200,7 @@ export default function AnalysisResults() {
 
         {/* Charts */}
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="rounded-xl border border-border bg-card p-6 shadow-card">
+          <div className="rounded-xl border border-border bg-card p-6 shadow-card transition-shadow hover:shadow-md">
             <h3 className="text-sm font-semibold text-card-foreground mb-4">Financial Ratios</h3>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={barData} layout="vertical">
@@ -222,7 +220,7 @@ export default function AnalysisResults() {
             </ResponsiveContainer>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-6 shadow-card">
+          <div className="rounded-xl border border-border bg-card p-6 shadow-card transition-shadow hover:shadow-md">
             <h3 className="text-sm font-semibold text-card-foreground mb-4">Asset Composition</h3>
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
@@ -240,7 +238,10 @@ export default function AnalysisResults() {
           </div>
         </div>
 
-        {/* AI Analysis */}
+        {/* Trend Analysis */}
+        <TrendAnalysis analyses={analyses} companyName={currentAnalysis.balanceSheetData.companyName} />
+
+        {/* AI Analysis CTA */}
         {!showAI && !ai && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -248,9 +249,9 @@ export default function AnalysisResults() {
             className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-8 text-center"
           >
             <Sparkles className="h-10 w-10 text-primary mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">AI-Powered Recommendation</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-2">AI-Powered Investment Recommendation</h3>
             <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-              Get an AI analysis with buy/sell/hold recommendation, risk scoring, and detailed insights.
+              Get a detailed AI analysis with buy/sell/hold recommendation, risk scoring, strengths, weaknesses, and investment reasoning.
             </p>
             <Button onClick={generateAI} className="gradient-electric text-primary-foreground border-0">
               <Sparkles className="mr-2 h-4 w-4" /> Generate AI Recommendation
@@ -261,39 +262,35 @@ export default function AnalysisResults() {
         {isAnalyzing && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-xl border border-border bg-card p-8 text-center shadow-card">
             <Loader2 className="h-10 w-10 text-primary mx-auto mb-4 animate-spin" />
-            <p className="text-foreground font-medium">Analyzing financial data...</p>
-            <p className="text-sm text-muted-foreground mt-1">Our AI is evaluating ratios and market context</p>
+            <p className="text-foreground font-medium">Analyzing with Gemini AI...</p>
+            <p className="text-sm text-muted-foreground mt-1">Evaluating financial ratios and generating investment recommendation</p>
           </motion.div>
         )}
 
         <AnimatePresence>
           {ai && !isAnalyzing && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
-              {/* Recommendation + Risk */}
+              {/* Recommendation + Risk + Confidence */}
               <div className="grid md:grid-cols-3 gap-6">
-                <div className="rounded-xl border border-border bg-card p-6 shadow-card flex flex-col items-center justify-center">
-                  <p className="text-xs text-muted-foreground mb-3">Recommendation</p>
-                  <div className={`text-xl font-extrabold rounded-full px-6 py-3 ${getRecommendationColor(ai.recommendation)} text-primary-foreground`}>
-                    {ai.recommendation}
-                  </div>
+                <div className="rounded-xl border border-border bg-card p-6 shadow-card flex flex-col items-center justify-center gap-4 transition-shadow hover:shadow-md">
+                  <p className="text-xs font-medium text-muted-foreground">AI Recommendation</p>
+                  <RecommendationBadge recommendation={ai.recommendation} size="lg" />
                 </div>
-                <div className="rounded-xl border border-border bg-card p-6 shadow-card flex flex-col items-center justify-center">
+                <div className="rounded-xl border border-border bg-card p-6 shadow-card flex flex-col items-center justify-center transition-shadow hover:shadow-md">
                   <RiskGauge score={ai.riskScore} />
                 </div>
-                <div className="rounded-xl border border-border bg-card p-6 shadow-card">
+                <div className="rounded-xl border border-border bg-card p-6 shadow-card transition-shadow hover:shadow-md">
                   <p className="text-xs text-muted-foreground mb-3">Confidence Level</p>
                   <div className="flex items-end gap-2 mb-3">
                     <span className="text-3xl font-bold text-primary">{ai.confidenceLevel}%</span>
                   </div>
-                  <div className="w-full bg-muted rounded-full h-3">
-                    <div className="h-3 rounded-full gradient-electric transition-all duration-1000" style={{ width: `${ai.confidenceLevel}%` }} />
-                  </div>
+                  <Progress value={ai.confidenceLevel} className="h-3" />
                   <p className="text-xs text-muted-foreground mt-2">Based on available financial data</p>
                 </div>
               </div>
 
               {/* Summary */}
-              <div className="rounded-xl border border-border bg-card p-6 shadow-card">
+              <div className="rounded-xl border border-border bg-card p-6 shadow-card transition-shadow hover:shadow-md">
                 <h3 className="text-sm font-semibold text-card-foreground mb-3 flex items-center gap-2">
                   <Shield className="h-4 w-4 text-primary" /> Executive Summary
                 </h3>
@@ -302,7 +299,7 @@ export default function AnalysisResults() {
 
               {/* Strengths & Weaknesses */}
               <div className="grid md:grid-cols-2 gap-6">
-                <div className="rounded-xl border border-border bg-card p-6 shadow-card">
+                <div className="rounded-xl border border-border bg-card p-6 shadow-card transition-shadow hover:shadow-md">
                   <h3 className="text-sm font-semibold text-card-foreground mb-4 flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-success" /> Strengths
                   </h3>
@@ -315,7 +312,7 @@ export default function AnalysisResults() {
                     ))}
                   </ul>
                 </div>
-                <div className="rounded-xl border border-border bg-card p-6 shadow-card">
+                <div className="rounded-xl border border-border bg-card p-6 shadow-card transition-shadow hover:shadow-md">
                   <h3 className="text-sm font-semibold text-card-foreground mb-4 flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 text-warning" /> Weaknesses
                   </h3>
@@ -331,7 +328,7 @@ export default function AnalysisResults() {
               </div>
 
               {/* Detailed Reasoning */}
-              <div className="rounded-xl border border-border bg-card p-6 shadow-card">
+              <div className="rounded-xl border border-border bg-card p-6 shadow-card transition-shadow hover:shadow-md">
                 <h3 className="text-sm font-semibold text-card-foreground mb-3">Detailed Reasoning</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{ai.reasoning}</p>
               </div>

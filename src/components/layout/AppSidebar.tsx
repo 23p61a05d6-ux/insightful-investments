@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { BarChart3, Home, PlusCircle, History, Star, Settings, TrendingUp, ChevronLeft, GitCompare, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Sidebar,
