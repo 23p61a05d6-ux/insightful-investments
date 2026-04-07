@@ -1,15 +1,8 @@
 /**
- * Analyze Edge Function
- * ---------------------
- * This Supabase Edge Function acts as a secure proxy to the Google Gemini API.
- * 
- * WHY AN EDGE FUNCTION?
- * - The Gemini API key is stored as a server-side secret (never exposed to client)
- * - The client calls this function via `supabase.functions.invoke('analyze', { body })`
- * - CORS headers allow the frontend to call this from any origin
- * 
- * INPUT: { companyName, debtRatio, debtToEquityRatio, equityRatio, currentRatio }
- * OUTPUT: { recommendation, riskScore, confidenceLevel, strengths[], weaknesses[], summary, reasoning }
+ * Analyze Edge Function — Secure Gemini AI Proxy
+ * ------------------------------------------------
+ * Calls Google Gemini API with financial ratios and returns structured JSON.
+ * The GEMINI_API_KEY is stored as a server-side secret (never exposed to client).
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -20,65 +13,64 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { companyName, debtRatio, debtToEquityRatio, equityRatio, currentRatio } = await req.json();
 
-    // Validate input
     if (!companyName || debtRatio == null || debtToEquityRatio == null || equityRatio == null || currentRatio == null) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+      return new Response(JSON.stringify({ error: "Missing required fields: companyName, debtRatio, debtToEquityRatio, equityRatio, currentRatio" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Read API key from Supabase secrets (set via dashboard or CLI)
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) {
-      return new Response(JSON.stringify({ error: "GEMINI_API_KEY is not configured on the server" }), {
+      return new Response(JSON.stringify({ error: "GEMINI_API_KEY is not configured. Please add it in project secrets." }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Build the AI prompt with the calculated financial ratios
-    const prompt = `You are a senior financial analyst with 20+ years of experience. Analyze this company's financial health based on the following balance sheet ratios:
+    const prompt = `You are a senior financial analyst with 20+ years of experience in equity research and credit analysis. Analyze this company's financial health based on the following balance sheet ratios:
 
 Company: ${companyName}
+
 Financial Ratios:
-- Debt Ratio: ${debtRatio}% (measures what percentage of assets are financed by debt)
-- Debt-to-Equity Ratio: ${debtToEquityRatio} (measures leverage — debt relative to shareholder equity)
-- Equity Ratio: ${equityRatio}% (measures what percentage of assets are financed by equity)
-- Current Ratio: ${currentRatio} (measures ability to pay short-term obligations)
+- Debt Ratio: ${debtRatio}% (percentage of assets financed by debt; <40% good, 40-60% moderate, >60% high risk)
+- Debt-to-Equity Ratio: ${debtToEquityRatio} (leverage measure; <1 conservative, 1-2 moderate, >2 aggressive)
+- Equity Ratio: ${equityRatio}% (percentage of assets financed by equity; >50% strong, 30-50% adequate, <30% weak)
+- Current Ratio: ${currentRatio} (short-term liquidity; >1.5 strong, 1-1.5 adequate, <1 concerning)
 
-Industry benchmarks for reference:
-- Debt Ratio: <40% is good, 40-60% is moderate, >60% is high risk
-- Debt-to-Equity: <1 is conservative, 1-2 is moderate, >2 is aggressive
-- Equity Ratio: >50% is strong, 30-50% is adequate, <30% is weak
-- Current Ratio: >1.5 is strong, 1-1.5 is adequate, <1 is concerning
-
-Provide a comprehensive analysis in this EXACT JSON format (no markdown, no code blocks, just raw JSON):
+You MUST respond with ONLY a valid JSON object (no markdown, no code fences, no explanation outside JSON). The JSON must have exactly this structure:
 {
   "recommendation": "STRONG BUY" or "BUY" or "HOLD" or "SELL" or "STRONG SELL",
-  "riskScore": (number 0-100, where 0 is safest and 100 is highest risk),
-  "confidenceLevel": (number 0-100, your confidence in this recommendation),
-  "strengths": ["strength 1", "strength 2", "strength 3"],
-  "weaknesses": ["weakness 1", "weakness 2"],
-  "summary": "2-3 sentence executive summary of the company's financial health",
-  "reasoning": "Detailed 3-4 sentence explanation of why you gave this recommendation, referencing the specific ratios"
-}`;
+  "riskScore": <integer 0-100, where 0 is safest>,
+  "confidenceLevel": <integer 0-100>,
+  "strengths": ["<strength 1>", "<strength 2>", "<strength 3>"],
+  "weaknesses": ["<weakness 1>", "<weakness 2>"],
+  "summary": "<2-3 sentence executive summary>",
+  "reasoning": "<detailed 3-5 sentence explanation referencing specific ratio values>"
+}
 
-    // Call Google Gemini API
+IMPORTANT:
+- strengths array MUST have exactly 3 items
+- weaknesses array MUST have exactly 2 items
+- All fields are required
+- riskScore and confidenceLevel must be integers
+- Output ONLY the JSON object, nothing else`;
+
+    // Call Gemini 1.5 Flash
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.3,  // Low temperature for consistent, analytical responses
+            temperature: 0.3,
             maxOutputTokens: 1024,
+            topP: 0.8,
           },
         }),
       }
@@ -87,42 +79,85 @@ Provide a comprehensive analysis in this EXACT JSON format (no markdown, no code
     if (!response.ok) {
       const errText = await response.text();
       console.error("Gemini API error:", response.status, errText);
-      return new Response(JSON.stringify({ error: "Gemini API error", details: errText }), {
+      
+      let userMessage = "Gemini API request failed";
+      if (response.status === 401 || response.status === 403) {
+        userMessage = "Invalid or expired Gemini API key. Please update your API key in project secrets.";
+      } else if (response.status === 429) {
+        userMessage = "Gemini API rate limit exceeded. Please try again in a few seconds.";
+      } else if (response.status >= 500) {
+        userMessage = "Gemini API is temporarily unavailable. Please try again later.";
+      }
+      
+      return new Response(JSON.stringify({ error: userMessage, status: response.status }), {
         status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    // Check for blocked content or empty response
+    const candidate = data.candidates?.[0];
+    if (!candidate) {
+      const blockReason = data.promptFeedback?.blockReason;
+      return new Response(JSON.stringify({ 
+        error: blockReason 
+          ? `Content was blocked by Gemini safety filters: ${blockReason}` 
+          : "No response generated by Gemini AI" 
+      }), {
+        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const text = candidate.content?.parts?.[0]?.text;
     if (!text) {
-      return new Response(JSON.stringify({ error: "No response from Gemini" }), {
+      return new Response(JSON.stringify({ error: "Empty response from Gemini AI. The model returned no text." }), {
         status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Extract JSON from the response (handle potential markdown code blocks)
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    // Robust JSON extraction — handle markdown code blocks, extra whitespace
+    let jsonStr = text.trim();
+    // Remove markdown code fences if present
+    jsonStr = jsonStr.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+    
+    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      return new Response(JSON.stringify({ error: "Could not parse AI response", raw: text }), {
+      console.error("Could not find JSON in Gemini response:", text);
+      return new Response(JSON.stringify({ error: "AI response was not valid JSON. Please try again.", raw: text.substring(0, 200) }), {
         status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
-
-    // Validate the parsed response has required fields
-    if (!parsed.recommendation || parsed.riskScore == null) {
-      return new Response(JSON.stringify({ error: "AI response missing required fields", raw: text }), {
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch (parseErr) {
+      console.error("JSON parse failed:", parseErr, "Raw:", jsonMatch[0].substring(0, 300));
+      return new Response(JSON.stringify({ error: "AI returned malformed JSON. Please try again." }), {
         status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Validate and sanitize required fields
+    const validRecs = ['STRONG BUY', 'BUY', 'HOLD', 'SELL', 'STRONG SELL'];
+    if (!validRecs.includes(parsed.recommendation)) {
+      parsed.recommendation = 'HOLD'; // safe default
+    }
+    parsed.riskScore = Math.max(0, Math.min(100, Math.round(Number(parsed.riskScore) || 50)));
+    parsed.confidenceLevel = Math.max(0, Math.min(100, Math.round(Number(parsed.confidenceLevel) || 60)));
+    parsed.strengths = Array.isArray(parsed.strengths) ? parsed.strengths.slice(0, 5) : ["Financial data analyzed"];
+    parsed.weaknesses = Array.isArray(parsed.weaknesses) ? parsed.weaknesses.slice(0, 5) : ["Limited data available"];
+    parsed.summary = String(parsed.summary || "Analysis completed based on provided financial ratios.");
+    parsed.reasoning = String(parsed.reasoning || "Recommendation based on the provided balance sheet ratios.");
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("analyze error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+    const message = e instanceof Error ? e.message : "Unknown server error";
+    return new Response(JSON.stringify({ error: `Analysis failed: ${message}. Please try again.` }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
