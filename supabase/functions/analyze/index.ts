@@ -52,37 +52,41 @@ Respond with ONLY a valid JSON object:
 
 strengths must have exactly 3 items, weaknesses exactly 2. Output ONLY JSON.`;
 
-    // Call Lovable AI Gateway (OpenAI-compatible)
-    const response = await fetch("https://ai.lovable.dev/v1/chat/completions", {
+    // Call Gemini API directly
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) {
+      return new Response(JSON.stringify({ error: "GEMINI_API_KEY not configured." }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: "You are a senior financial analyst. Always respond with valid JSON only, no markdown fences." },
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.3,
-        max_tokens: 1024,
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 1024,
+        },
       }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("AI Gateway error:", response.status, errText);
-      return new Response(JSON.stringify({ error: `AI service error (${response.status}). Please try again.` }), {
+      console.error("Gemini API error:", response.status, errText);
+      return new Response(JSON.stringify({ error: `Gemini API error (${response.status}): ${errText.substring(0, 200)}` }), {
         status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const data = await response.json();
-    const text = data.choices?.[0]?.message?.content;
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!text) {
-      console.error("Empty AI response:", JSON.stringify(data));
+      console.error("Empty Gemini response:", JSON.stringify(data).substring(0, 500));
       return new Response(JSON.stringify({ error: "AI returned an empty response. Please try again." }), {
         status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
