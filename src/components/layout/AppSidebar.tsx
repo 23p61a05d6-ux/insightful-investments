@@ -107,7 +107,7 @@ export function AppSidebar() {
           <div className="space-y-3">
             <div className="rounded-lg bg-sidebar-accent p-3 flex items-center justify-between">
               <div>
-                <p className="text-xs text-sidebar-foreground/60">AI-Powered Analysis</p>
+                <p className="text-xs text-sidebar-foreground/60">Smart Analysis</p>
                 <p className="text-xs text-sidebar-foreground/40 mt-1">Smarter investment decisions</p>
               </div>
               <ThemeToggle />
