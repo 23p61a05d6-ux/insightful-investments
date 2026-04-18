@@ -123,9 +123,9 @@ export default function ComparisonPage() {
       <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <GitCompare className="h-6 w-6 text-primary" /> Company Comparison
+            <GitCompare className="h-6 w-6 text-primary" /> Smart Company Comparison
           </h1>
-          <p className="text-muted-foreground mt-1">Select up to 4 companies from your history to compare</p>
+          <p className="text-muted-foreground mt-1">Select up to 4 companies from your history for an in-depth side-by-side smart comparison</p>
         </motion.div>
 
         {/* Company selector */}
@@ -167,12 +167,13 @@ export default function ComparisonPage() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             {/* Winner badge */}
             {winner && (
-              <div className="rounded-xl border border-success/30 bg-success/5 p-6 text-center">
-                <Trophy className="h-8 w-8 text-success mx-auto mb-2" />
-                <p className="text-lg font-bold text-foreground">
-                  Overall Winner: {winner.balanceSheetData.companyName}
+              <div className="rounded-xl border border-success/30 bg-gradient-to-br from-success/10 to-success/5 p-6 text-center shadow-card">
+                <Trophy className="h-10 w-10 text-success mx-auto mb-3" />
+                <Badge className="bg-success text-success-foreground mb-2">Winner</Badge>
+                <p className="text-2xl font-bold text-foreground mt-1">
+                  {winner.balanceSheetData.companyName}
                 </p>
-                <p className="text-sm text-muted-foreground mt-1">Based on superior liquidity and lower debt risk</p>
+                <p className="text-sm text-muted-foreground mt-2">Strongest overall balance-sheet quality among selected peers</p>
               </div>
             )}
 
@@ -180,10 +181,10 @@ export default function ComparisonPage() {
             <div className="rounded-xl border border-border bg-card shadow-card overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border">
+                  <tr className="border-b border-border bg-muted/30">
                     <th className="text-left p-4 text-muted-foreground font-medium">Metric</th>
                     {selected.map((a, i) => (
-                      <th key={a.id} className="text-center p-4 font-semibold text-card-foreground">
+                      <th key={a.id} className={`text-center p-4 font-semibold text-card-foreground ${winner?.id === a.id ? 'bg-success/10' : ''}`}>
                         <div className="flex items-center justify-center gap-2">
                           <span className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i] }} />
                           {a.balanceSheetData.companyName}
