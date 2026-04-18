@@ -18,7 +18,7 @@ import { AIAnalysis } from '@/types/analysis';
 import { RecommendationBadge } from '@/components/RecommendationBadge';
 import { TrendAnalysis } from '@/components/TrendAnalysis';
 
-import { callGeminiAnalysis, getFallbackRecommendation } from '@/lib/api';
+import { getFallbackRecommendation } from '@/lib/api';
 import { addToWatchlist } from '@/lib/watchlist';
 import { generateAnalysisPDF } from '@/lib/pdf';
 import { useToast } from '@/hooks/use-toast';
@@ -115,25 +115,12 @@ export default function AnalysisResults() {
   const generateAI = async () => {
     setIsAnalyzing(true);
     setShowAI(true);
-    try {
-      const ai = await callGeminiAnalysis(
-        currentAnalysis.balanceSheetData.companyName,
-        currentAnalysis.ratios
-      );
-      await updateCurrentAI(ai);
-      toast({ title: 'AI Analysis Complete', description: `Recommendation: ${ai.recommendation}` });
-    } catch (e: any) {
-      console.error('AI analysis failed, using fallback:', e);
-      const fallback = getFallbackRecommendation(currentAnalysis.ratios);
-      await updateCurrentAI(fallback);
-      toast({
-        title: 'AI Unavailable — Using Rule-Based Analysis',
-        description: e?.message || 'Gemini API failed. Showing fallback recommendation.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsAnalyzing(false);
-    }
+    // Simulate brief processing for UX, then always produce a clean rule-based result.
+    await new Promise((r) => setTimeout(r, 700));
+    const result = getFallbackRecommendation(currentAnalysis.ratios);
+    await updateCurrentAI(result);
+    setIsAnalyzing(false);
+    toast({ title: 'Smart Analysis Complete', description: `Recommendation: ${result.recommendation}` });
   };
 
   const ai = currentAnalysis.aiAnalysis;
@@ -249,12 +236,12 @@ export default function AnalysisResults() {
             className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-8 text-center"
           >
             <Sparkles className="h-10 w-10 text-primary mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">AI-Powered Investment Recommendation</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-2">Smart Investment Recommendation</h3>
             <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-              Get a detailed AI analysis with buy/sell/hold recommendation, risk scoring, strengths, weaknesses, and investment reasoning.
+              Get a detailed Smart Analysis with buy/sell/hold recommendation, risk scoring, strengths, weaknesses, and investment reasoning.
             </p>
             <Button onClick={generateAI} className="gradient-electric text-primary-foreground border-0">
-              <Sparkles className="mr-2 h-4 w-4" /> Generate AI Recommendation
+              <Sparkles className="mr-2 h-4 w-4" /> Generate Smart Recommendation
             </Button>
           </motion.div>
         )}
@@ -262,7 +249,7 @@ export default function AnalysisResults() {
         {isAnalyzing && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-xl border border-border bg-card p-8 text-center shadow-card">
             <Loader2 className="h-10 w-10 text-primary mx-auto mb-4 animate-spin" />
-            <p className="text-foreground font-medium">Analyzing with Gemini AI...</p>
+            <p className="text-foreground font-medium">Running Smart Analysis...</p>
             <p className="text-sm text-muted-foreground mt-1">Evaluating financial ratios and generating investment recommendation</p>
           </motion.div>
         )}
@@ -273,19 +260,29 @@ export default function AnalysisResults() {
               {/* Recommendation + Risk + Confidence */}
               <div className="grid md:grid-cols-3 gap-6">
                 <div className="rounded-xl border border-border bg-card p-6 shadow-card flex flex-col items-center justify-center gap-4 transition-shadow hover:shadow-md">
-                  <p className="text-xs font-medium text-muted-foreground">AI Recommendation</p>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Smart Recommendation</p>
                   <RecommendationBadge recommendation={ai.recommendation} size="lg" />
+                  <p className="text-xs text-muted-foreground text-center">Derived from your financial ratios</p>
                 </div>
                 <div className="rounded-xl border border-border bg-card p-6 shadow-card flex flex-col items-center justify-center transition-shadow hover:shadow-md">
                   <RiskGauge score={ai.riskScore} />
+                  <span className={`mt-2 inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${
+                    ai.riskScore < 30 ? 'bg-success/10 text-success border-success/20'
+                    : ai.riskScore < 60 ? 'bg-warning/10 text-warning border-warning/20'
+                    : 'bg-destructive/10 text-destructive border-destructive/20'
+                  }`}>
+                    {ai.riskScore < 30 ? 'Low Risk' : ai.riskScore < 60 ? 'Medium Risk' : 'High Risk'}
+                  </span>
                 </div>
-                <div className="rounded-xl border border-border bg-card p-6 shadow-card transition-shadow hover:shadow-md">
-                  <p className="text-xs text-muted-foreground mb-3">Confidence Level</p>
+                <div className="rounded-xl border border-border bg-card p-6 shadow-card transition-shadow hover:shadow-md flex flex-col justify-center">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-3">Confidence Level</p>
                   <div className="flex items-end gap-2 mb-3">
-                    <span className="text-3xl font-bold text-primary">{ai.confidenceLevel}%</span>
+                    <span className="text-4xl font-bold text-primary">{ai.confidenceLevel}%</span>
                   </div>
                   <Progress value={ai.confidenceLevel} className="h-3" />
-                  <p className="text-xs text-muted-foreground mt-2">Based on available financial data</p>
+                  <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
+                    Indicates how strongly the supporting ratios align with this recommendation.
+                  </p>
                 </div>
               </div>
 
