@@ -198,25 +198,34 @@ export default function ComparisonPage() {
                   {ratioRows.map(row => {
                     const values = selected.map(a => a.ratios[row.key]);
                     return (
-                      <tr key={row.key} className="border-b border-border last:border-0">
+                      <tr key={row.key} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                         <td className="p-4 text-muted-foreground font-medium">{row.label}</td>
-                        {selected.map((a, i) => (
-                          <td key={a.id} className={`text-center p-4 font-semibold ${
-                            isBest(values, i, row.higherIsBetter) ? 'text-success' :
-                            isWorst(values, i, row.higherIsBetter) && selected.length > 1 ? 'text-destructive' :
-                            'text-card-foreground'
-                          }`}>
-                            {row.format(values[i])}
-                          </td>
-                        ))}
+                        {selected.map((a, i) => {
+                          const best = isBest(values, i, row.higherIsBetter);
+                          const worst = isWorst(values, i, row.higherIsBetter) && selected.length > 1 && !best;
+                          return (
+                            <td key={a.id} className={`text-center p-4 font-semibold ${
+                              best ? 'text-success' : worst ? 'text-destructive' : 'text-card-foreground'
+                            } ${winner?.id === a.id ? 'bg-success/5' : ''}`}>
+                              <div className="flex items-center justify-center gap-1.5">
+                                {row.format(values[i])}
+                                {best && <TrendingUp className="h-3.5 w-3.5" aria-label="Better" />}
+                                {worst && <TrendingDown className="h-3.5 w-3.5" aria-label="Worse" />}
+                                {!best && !worst && selected.length > 1 && <Minus className="h-3.5 w-3.5 text-muted-foreground" aria-label="Equal" />}
+                              </div>
+                              {best && <span className="block text-[10px] uppercase tracking-wide mt-0.5">Better</span>}
+                              {worst && <span className="block text-[10px] uppercase tracking-wide mt-0.5">Worse</span>}
+                            </td>
+                          );
+                        })}
                       </tr>
                     );
                   })}
-                  {/* AI Recommendation row */}
+                  {/* Smart Recommendation row */}
                   <tr className="border-b border-border last:border-0">
-                    <td className="p-4 text-muted-foreground font-medium">AI Recommendation</td>
+                    <td className="p-4 text-muted-foreground font-medium">Smart Recommendation</td>
                     {selected.map(a => (
-                      <td key={a.id} className="text-center p-4">
+                      <td key={a.id} className={`text-center p-4 ${winner?.id === a.id ? 'bg-success/5' : ''}`}>
                         {a.aiAnalysis?.recommendation ? (
                           <Badge variant="outline" className="text-xs">{a.aiAnalysis.recommendation}</Badge>
                         ) : (
@@ -228,7 +237,7 @@ export default function ComparisonPage() {
                   <tr>
                     <td className="p-4 text-muted-foreground font-medium">Risk Score</td>
                     {selected.map(a => (
-                      <td key={a.id} className="text-center p-4 font-semibold text-card-foreground">
+                      <td key={a.id} className={`text-center p-4 font-semibold text-card-foreground ${winner?.id === a.id ? 'bg-success/5' : ''}`}>
                         {a.aiAnalysis?.riskScore != null ? a.aiAnalysis.riskScore : '—'}
                       </td>
                     ))}
@@ -236,6 +245,21 @@ export default function ComparisonPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Detailed Smart Comparison Reasoning */}
+            {winner && (
+              <div className="rounded-xl border border-primary/20 bg-card p-6 md:p-8 shadow-card">
+                <div className="flex items-center gap-2 mb-4">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold text-card-foreground">Smart Comparison Analysis</h3>
+                </div>
+                <div className="space-y-4 text-sm md:text-[15px] leading-relaxed text-card-foreground/90">
+                  {generateComparisonReasoning(selected, winner).map((para, idx) => (
+                    <p key={idx}>{para}</p>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Charts */}
             <div className="grid md:grid-cols-2 gap-6">
