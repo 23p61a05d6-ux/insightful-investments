@@ -11,8 +11,8 @@ const features = [
   },
   {
     icon: Zap,
-    title: 'AI Recommendations',
-    description: 'Get AI-powered buy/sell/hold recommendations with confidence scores.',
+    title: 'Smart Recommendations',
+    description: 'Get smart buy/sell/hold recommendations with confidence scores.',
   },
   {
     icon: Shield,
@@ -65,14 +65,14 @@ export default function LandingPage() {
             className="max-w-3xl mx-auto text-center"
           >
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm text-primary mb-8">
-              <Zap className="h-3.5 w-3.5" /> AI-Powered Investment Analysis
+              <Zap className="h-3.5 w-3.5" /> Smart Investment Analysis
             </div>
             <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6" style={{ color: 'hsl(210 40% 98%)' }}>
               Smarter Investment{' '}
               <span className="text-gradient">Decisions</span>
             </h1>
             <p className="text-lg md:text-xl mb-10 max-w-2xl mx-auto" style={{ color: 'hsl(215 20% 65%)' }}>
-              Analyze balance sheets, calculate financial ratios, and get AI-powered
+              Analyze balance sheets, calculate financial ratios, and get smart
               recommendations — all in one beautiful platform.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
