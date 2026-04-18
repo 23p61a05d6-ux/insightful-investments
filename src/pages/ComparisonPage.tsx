@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { GitCompare, Trophy, Plus, X, Loader2 } from 'lucide-react';
+import { GitCompare, Trophy, Plus, X, Loader2, TrendingUp, TrendingDown, Minus, Sparkles } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Legend, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
@@ -12,6 +12,42 @@ import { AnalysisResult } from '@/types/analysis';
 import { Badge } from '@/components/ui/badge';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
+
+/**
+ * Generate a detailed multi-paragraph explanation comparing selected companies.
+ * Highlights the winner's strengths and the laggard's weaknesses across the
+ * four core ratios (Debt, D/E, Equity, Current).
+ */
+function generateComparisonReasoning(selected: AnalysisResult[], winner: AnalysisResult | null): string[] {
+  if (!winner || selected.length < 2) return [];
+
+  const others = selected.filter(a => a.id !== winner.id);
+  const worst = others.reduce((w, a) =>
+    (a.ratios.debtRatio > w.ratios.debtRatio || a.ratios.currentRatio < w.ratios.currentRatio) ? a : w,
+    others[0]
+  );
+
+  const w = winner.ratios;
+  const l = worst.ratios;
+  const wn = winner.balanceSheetData.companyName;
+  const ln = worst.balanceSheetData.companyName;
+
+  const debtVerdict = w.debtRatio < l.debtRatio
+    ? `${wn} carries a lower debt burden (${w.debtRatio.toFixed(1)}%) than ${ln} (${l.debtRatio.toFixed(1)}%), meaning a smaller share of its assets is financed through borrowed money — a sign of reduced financial risk and stronger balance-sheet resilience.`
+    : `${wn} maintains a comparable debt level (${w.debtRatio.toFixed(1)}%) versus ${ln} (${l.debtRatio.toFixed(1)}%), but compensates through stronger liquidity and equity backing.`;
+
+  const liquidityVerdict = w.currentRatio > l.currentRatio
+    ? `Its current ratio of ${w.currentRatio.toFixed(2)} comfortably exceeds ${ln}'s ${l.currentRatio.toFixed(2)}, indicating ${wn} can cover short-term obligations more reliably and is far less exposed to liquidity stress in adverse market conditions.`
+    : `Liquidity is broadly similar, with ${wn} at ${w.currentRatio.toFixed(2)} versus ${ln} at ${l.currentRatio.toFixed(2)}, but other structural advantages tip the balance.`;
+
+  const equityVerdict = `In capital structure, ${wn} shows an equity ratio of ${w.equityRatio.toFixed(1)}% against ${ln}'s ${l.equityRatio.toFixed(1)}%, and a debt-to-equity multiple of ${w.debtToEquityRatio.toFixed(2)} versus ${l.debtToEquityRatio.toFixed(2)} — reinforcing that ${wn} relies more on owner capital than external creditors, a healthier long-term position.`;
+
+  const weakness = `${ln}, by contrast, displays elevated leverage and tighter liquidity, which raises its sensitivity to interest-rate shocks, refinancing risk, and short-term cash crunches. While not necessarily a poor investment, it warrants closer scrutiny of cash-flow stability and debt servicing capacity before allocating capital.`;
+
+  const conclusion = `Taken together, ${wn} demonstrates a more conservative, well-capitalised, and liquid profile, making it the stronger candidate among the selected peers from a pure balance-sheet quality perspective.`;
+
+  return [debtVerdict, liquidityVerdict, equityVerdict, weakness, conclusion];
+}
 
 function getWinner(selected: AnalysisResult[]): AnalysisResult | null {
   if (selected.length < 2) return null;
@@ -87,9 +123,9 @@ export default function ComparisonPage() {
       <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <GitCompare className="h-6 w-6 text-primary" /> Company Comparison
+            <GitCompare className="h-6 w-6 text-primary" /> Smart Company Comparison
           </h1>
-          <p className="text-muted-foreground mt-1">Select up to 4 companies from your history to compare</p>
+          <p className="text-muted-foreground mt-1">Select up to 4 companies from your history for an in-depth side-by-side smart comparison</p>
         </motion.div>
 
         {/* Company selector */}
@@ -131,12 +167,13 @@ export default function ComparisonPage() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             {/* Winner badge */}
             {winner && (
-              <div className="rounded-xl border border-success/30 bg-success/5 p-6 text-center">
-                <Trophy className="h-8 w-8 text-success mx-auto mb-2" />
-                <p className="text-lg font-bold text-foreground">
-                  Overall Winner: {winner.balanceSheetData.companyName}
+              <div className="rounded-xl border border-success/30 bg-gradient-to-br from-success/10 to-success/5 p-6 text-center shadow-card">
+                <Trophy className="h-10 w-10 text-success mx-auto mb-3" />
+                <Badge className="bg-success text-success-foreground mb-2">Winner</Badge>
+                <p className="text-2xl font-bold text-foreground mt-1">
+                  {winner.balanceSheetData.companyName}
                 </p>
-                <p className="text-sm text-muted-foreground mt-1">Based on superior liquidity and lower debt risk</p>
+                <p className="text-sm text-muted-foreground mt-2">Strongest overall balance-sheet quality among selected peers</p>
               </div>
             )}
 
@@ -144,10 +181,10 @@ export default function ComparisonPage() {
             <div className="rounded-xl border border-border bg-card shadow-card overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border">
+                  <tr className="border-b border-border bg-muted/30">
                     <th className="text-left p-4 text-muted-foreground font-medium">Metric</th>
                     {selected.map((a, i) => (
-                      <th key={a.id} className="text-center p-4 font-semibold text-card-foreground">
+                      <th key={a.id} className={`text-center p-4 font-semibold text-card-foreground ${winner?.id === a.id ? 'bg-success/10' : ''}`}>
                         <div className="flex items-center justify-center gap-2">
                           <span className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i] }} />
                           {a.balanceSheetData.companyName}
@@ -161,25 +198,34 @@ export default function ComparisonPage() {
                   {ratioRows.map(row => {
                     const values = selected.map(a => a.ratios[row.key]);
                     return (
-                      <tr key={row.key} className="border-b border-border last:border-0">
+                      <tr key={row.key} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                         <td className="p-4 text-muted-foreground font-medium">{row.label}</td>
-                        {selected.map((a, i) => (
-                          <td key={a.id} className={`text-center p-4 font-semibold ${
-                            isBest(values, i, row.higherIsBetter) ? 'text-success' :
-                            isWorst(values, i, row.higherIsBetter) && selected.length > 1 ? 'text-destructive' :
-                            'text-card-foreground'
-                          }`}>
-                            {row.format(values[i])}
-                          </td>
-                        ))}
+                        {selected.map((a, i) => {
+                          const best = isBest(values, i, row.higherIsBetter);
+                          const worst = isWorst(values, i, row.higherIsBetter) && selected.length > 1 && !best;
+                          return (
+                            <td key={a.id} className={`text-center p-4 font-semibold ${
+                              best ? 'text-success' : worst ? 'text-destructive' : 'text-card-foreground'
+                            } ${winner?.id === a.id ? 'bg-success/5' : ''}`}>
+                              <div className="flex items-center justify-center gap-1.5">
+                                {row.format(values[i])}
+                                {best && <TrendingUp className="h-3.5 w-3.5" aria-label="Better" />}
+                                {worst && <TrendingDown className="h-3.5 w-3.5" aria-label="Worse" />}
+                                {!best && !worst && selected.length > 1 && <Minus className="h-3.5 w-3.5 text-muted-foreground" aria-label="Equal" />}
+                              </div>
+                              {best && <span className="block text-[10px] uppercase tracking-wide mt-0.5">Better</span>}
+                              {worst && <span className="block text-[10px] uppercase tracking-wide mt-0.5">Worse</span>}
+                            </td>
+                          );
+                        })}
                       </tr>
                     );
                   })}
-                  {/* AI Recommendation row */}
+                  {/* Smart Recommendation row */}
                   <tr className="border-b border-border last:border-0">
-                    <td className="p-4 text-muted-foreground font-medium">AI Recommendation</td>
+                    <td className="p-4 text-muted-foreground font-medium">Smart Recommendation</td>
                     {selected.map(a => (
-                      <td key={a.id} className="text-center p-4">
+                      <td key={a.id} className={`text-center p-4 ${winner?.id === a.id ? 'bg-success/5' : ''}`}>
                         {a.aiAnalysis?.recommendation ? (
                           <Badge variant="outline" className="text-xs">{a.aiAnalysis.recommendation}</Badge>
                         ) : (
@@ -191,7 +237,7 @@ export default function ComparisonPage() {
                   <tr>
                     <td className="p-4 text-muted-foreground font-medium">Risk Score</td>
                     {selected.map(a => (
-                      <td key={a.id} className="text-center p-4 font-semibold text-card-foreground">
+                      <td key={a.id} className={`text-center p-4 font-semibold text-card-foreground ${winner?.id === a.id ? 'bg-success/5' : ''}`}>
                         {a.aiAnalysis?.riskScore != null ? a.aiAnalysis.riskScore : '—'}
                       </td>
                     ))}
@@ -199,6 +245,21 @@ export default function ComparisonPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Detailed Smart Comparison Reasoning */}
+            {winner && (
+              <div className="rounded-xl border border-primary/20 bg-card p-6 md:p-8 shadow-card">
+                <div className="flex items-center gap-2 mb-4">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold text-card-foreground">Smart Comparison Analysis</h3>
+                </div>
+                <div className="space-y-4 text-sm md:text-[15px] leading-relaxed text-card-foreground/90">
+                  {generateComparisonReasoning(selected, winner).map((para, idx) => (
+                    <p key={idx}>{para}</p>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Charts */}
             <div className="grid md:grid-cols-2 gap-6">
