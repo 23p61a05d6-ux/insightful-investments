@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { GitCompare, Trophy, Plus, X, Loader2 } from 'lucide-react';
+import { GitCompare, Trophy, Plus, X, Loader2, TrendingUp, TrendingDown, Minus, Sparkles } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Legend, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
@@ -12,6 +12,42 @@ import { AnalysisResult } from '@/types/analysis';
 import { Badge } from '@/components/ui/badge';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
+
+/**
+ * Generate a detailed multi-paragraph explanation comparing selected companies.
+ * Highlights the winner's strengths and the laggard's weaknesses across the
+ * four core ratios (Debt, D/E, Equity, Current).
+ */
+function generateComparisonReasoning(selected: AnalysisResult[], winner: AnalysisResult | null): string[] {
+  if (!winner || selected.length < 2) return [];
+
+  const others = selected.filter(a => a.id !== winner.id);
+  const worst = others.reduce((w, a) =>
+    (a.ratios.debtRatio > w.ratios.debtRatio || a.ratios.currentRatio < w.ratios.currentRatio) ? a : w,
+    others[0]
+  );
+
+  const w = winner.ratios;
+  const l = worst.ratios;
+  const wn = winner.balanceSheetData.companyName;
+  const ln = worst.balanceSheetData.companyName;
+
+  const debtVerdict = w.debtRatio < l.debtRatio
+    ? `${wn} carries a lower debt burden (${w.debtRatio.toFixed(1)}%) than ${ln} (${l.debtRatio.toFixed(1)}%), meaning a smaller share of its assets is financed through borrowed money — a sign of reduced financial risk and stronger balance-sheet resilience.`
+    : `${wn} maintains a comparable debt level (${w.debtRatio.toFixed(1)}%) versus ${ln} (${l.debtRatio.toFixed(1)}%), but compensates through stronger liquidity and equity backing.`;
+
+  const liquidityVerdict = w.currentRatio > l.currentRatio
+    ? `Its current ratio of ${w.currentRatio.toFixed(2)} comfortably exceeds ${ln}'s ${l.currentRatio.toFixed(2)}, indicating ${wn} can cover short-term obligations more reliably and is far less exposed to liquidity stress in adverse market conditions.`
+    : `Liquidity is broadly similar, with ${wn} at ${w.currentRatio.toFixed(2)} versus ${ln} at ${l.currentRatio.toFixed(2)}, but other structural advantages tip the balance.`;
+
+  const equityVerdict = `In capital structure, ${wn} shows an equity ratio of ${w.equityRatio.toFixed(1)}% against ${ln}'s ${l.equityRatio.toFixed(1)}%, and a debt-to-equity multiple of ${w.debtToEquityRatio.toFixed(2)} versus ${l.debtToEquityRatio.toFixed(2)} — reinforcing that ${wn} relies more on owner capital than external creditors, a healthier long-term position.`;
+
+  const weakness = `${ln}, by contrast, displays elevated leverage and tighter liquidity, which raises its sensitivity to interest-rate shocks, refinancing risk, and short-term cash crunches. While not necessarily a poor investment, it warrants closer scrutiny of cash-flow stability and debt servicing capacity before allocating capital.`;
+
+  const conclusion = `Taken together, ${wn} demonstrates a more conservative, well-capitalised, and liquid profile, making it the stronger candidate among the selected peers from a pure balance-sheet quality perspective.`;
+
+  return [debtVerdict, liquidityVerdict, equityVerdict, weakness, conclusion];
+}
 
 function getWinner(selected: AnalysisResult[]): AnalysisResult | null {
   if (selected.length < 2) return null;
